@@ -25,7 +25,7 @@ function App() {
       <h1
         id="title"
         style={{
-          color: "navy",
+          color:"Blue",
           paddingBottom: "20px",
           fontSize: "100px",
           textShadow: "2px 2px 4px rgba(0, 0, 0, 0.5)",
@@ -36,11 +36,13 @@ function App() {
         Sunny Shop 101
       </h1>
 
+      <p style={{ fontSize: "30px", textAlign: "center", color:"black" , fontFamily:"sans-serif"}}> Something 20 Bath!! </p>
+
       <div className="product-grid" style={{ paddingTop:"20px" }}>
         {products.map((product) => (
           <div className="product-card">
-            <h1 style={{ fontSize: "35px", paddingBottom: "15px" }}>{product.title}</h1>
-            <p style={{ fontSize: "15px" }}>{product.description}</p>
+            <h1 style={{ fontSize: "35px", paddingBottom: "15px", color:"black" }}>{product.title}</h1>
+            <p style={{ fontSize: "15px" , color:"black"}}>{product.description}</p>
           </div>
         ))}
       </div>
