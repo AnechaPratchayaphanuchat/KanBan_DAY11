@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title> Sunny Japanese Restaurant 101</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 2rem;
+            background-color: #f0f4f8;
+        }
+        h1, h2 {
+            text-align: center;
+        }
+        .chart-container {
+            max-width: 750px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 8px rgba(0,0,0,0.1);
+        }
+        canvas {
+            max-width: 100%;
+        }
+        .summary-cards {
+            display: flex;
+            justify-content: space-around;
+            gap: 1rem; /* Space between cards */
+            margin-bottom: 2rem;
+            flex-wrap: wrap; /* Allow cards to wrap on smaller screens */
+        }
+        .summary-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 0 8px rgba(0,0,0,0.1);
+            text-align: center;
+            flex: 1; /* Distribute space evenly */
+            min-width: 200px; /* Minimum width for each card */
+        }
+        .summary-card h3 {
+            margin-top: 0;
+            font-size: 1.1em;
+            color: #333;
+        }
+        .summary-card p {
+            font-size: 2em;
+            font-weight: bold;
+            color: #007bff; /* A primary color for the value */
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div style="text-align: center; margin-bottom: 24px;">
+        <a href="/" style="text-decoration: none;">
+          <button
+            style="
+              padding: 10px 20px;
+              align-content: left;
+              display: flex;
+              font-size: 1rem;
+              border-radius: 8px;
+              background-color: #40916c; /* ม่วงพาสเทล */
+              color: #ffffff;
+              border: none;
+              cursor: pointer;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+              transition: background-color 0.3s ease;
+            "
+          >
+            Home
+          </button>
+        </a>
+      </div>
+    <h1 style="color: #00af89; text-align: center; margin-bottom: 24px; font-size: 80px; font-weight: bold; text-shadow:2px 2px 4px rgba(0, 0, 0, 0.5);"> Sunny Japanese Restaurant 101 </h1>
+
+    <div class="summary-cards">
+        <!-- Cards will be populated by JavaScript -->
+    </div>
+
+    <div class="chart-container">
+        <h2>จำนวนเมนูในแต่ละหมวด</h2>
+        <canvas id="categoryChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <h2>คะแนนรีวิวของแต่ละเมนู</h2>
+        <canvas id="ratingChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <h2>จำนวนรีวิวต่อเมนู</h2>
+        <canvas id="reviewChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <h2>การเปรียบเทียบราคา (บาท)</h2>
+        <canvas id="priceChart"></canvas>
+    </div>
+
+    <script>
+        async function loadData() {
+            const res = await fetch('./data.json');
+            const data = await res.json();
+
+            // Populate Summary Cards
+            const totalMenus = data.length;
+            const totalRatingSum = data.reduce((sum, item) => sum + (item.rating || 0), 0);
+            const averageRating = data.length > 0 ? (totalRatingSum / data.length).toFixed(1) : 'N/A';
+            const totalReviews = data.reduce((sum, item) => sum + (item.reviews || 0), 0);
+
+            const summaryCardsContainer = document.querySelector('.summary-cards');
+            summaryCardsContainer.innerHTML = `
+                <div class="summary-card">
+                    <h3>จำนวนเมนูทั้งหมด</h3>
+                    <p id="total-menus-value">${totalMenus}</p>
+                </div>
+                <div class="summary-card">
+                    <h3>คะแนนรีวิวเฉลี่ย</h3>
+                    <p id="avg-rating-value">${averageRating}</p>
+                </div>
+                <div class="summary-card">
+                    <h3>จำนวนรีวิวทั้งหมด</h3>
+                    <p id="total-reviews-value">${totalReviews.toLocaleString()}</p>
+                </div>
+            `;
+
+            // Update specific elements if needed later, though direct innerHTML is fine for this setup
+            // document.getElementById('total-menus-value').textContent = totalMenus;
+            // document.getElementById('avg-rating-value').textContent = averageRating;
+            // document.getElementById('total-reviews-value').textContent = totalReviews.toLocaleString();
+
+
+
+
+            // 1. แสดงจำนวนเมนูต่อประเภท (หมวดหมู่)
+            const categoryBaseColors = [
+                { dark: '#D32F2F', light: '#FF6384' }, // Red
+                { dark: '#1976D2', light: '#36A2EB' }, // Blue
+                { dark: '#FBC02D', light: '#FFCE56' }, // Yellow
+                { dark: '#00796B', light: '#4BC0C0' }, // Teal
+                { dark: '#7B1FA2', light: '#9966FF' }, // Purple
+                { dark: '#F57C00', light: '#FF9F40' }  // Orange
+            ];
+
+            // Colors for Bar Charts
+            const ratingGradientColors = { dark: '#0D47A1', light: '#42A5F5' }; // Dark Blue to Lighter Blue
+            const reviewGradientColors = { dark: '#E65100', light: '#FFB74D' }; // Dark Orange to Lighter Orange
+            const priceGradientColors = { dark: '#2E7D32', light: '#66BB6A' }; // Dark Green to Lighter Green
+
+            const categoryCount = {};
+            data.forEach(item => {
+                const cat = item.category;
+                categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+            });
+
+            new Chart(document.getElementById('categoryChart'), {
+                type: 'pie', // เปลี่ยนจาก 'bar' เป็น 'pie'
+                data: {
+                    labels: Object.keys(categoryCount),
+                    datasets: [{
+                        label: 'จำนวนเมนู',
+                        data: Object.values(categoryCount),
+                        backgroundColor: function(context) {
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) {
+                                // Fallback color if chartArea is not available yet
+                                return categoryBaseColors[context.dataIndex % categoryBaseColors.length].light;
+                            }
+                            const colorIndex = context.dataIndex % categoryBaseColors.length;
+                            const colors = categoryBaseColors[colorIndex];
+                            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                            gradient.addColorStop(0, colors.dark);
+                            gradient.addColorStop(1, colors.light);
+                            return gradient;
+                        }
+                    }]
+                },
+                options: {
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'จำนวนเมนูในแต่ละหมวด'
+                        }
+                    },
+                    // scales ไม่จำเป็นสำหรับ pie chart โดยทั่วไป จึงสามารถลบออกหรือคอมเมนต์ไว้ได้
+                }
+            });
+
+            // Prepare menu names for charts that might need original data order
+            const originalOrderMenuNames = data.map(item => item.name);
+
+            // 2. แสดงคะแนนรีวิวของแต่ละเมนู (Sorted, Vertical Bars, Dark to Light Gradient)
+            // Sort data by rating in descending order specifically for this chart
+            const sortedRatingData = [...data].sort((a, b) => b.rating - a.rating);
+            const ratingChartLabels = sortedRatingData.map(item => item.name);
+            const ratingChartValues = sortedRatingData.map(item => item.rating);
+
+            new Chart(document.getElementById('ratingChart'), {
+                type: 'bar', // Ensures it's a vertical bar chart
+                data: {
+                    labels: ratingChartLabels, // Use sorted menu names
+                    datasets: [{
+                        label: 'คะแนนรีวิว (เต็ม 5)',
+                        data: ratingChartValues, // Use sorted ratings
+                        backgroundColor: function(context) {
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) {
+                                return ratingGradientColors.light; // Fallback
+                            }
+                            const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                            gradient.addColorStop(0, ratingGradientColors.dark); // Dark at the base
+                            gradient.addColorStop(1, ratingGradientColors.light); // Light at the top
+                            return gradient;
+                        }
+                    }]
+                },
+                options: {
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'คะแนนของเมนูต่างๆ (เรียงจากมากไปน้อย)' // Updated title to reflect sorting
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 5
+                        }
+                    }
+                }
+            });
+
+            // 3. แสดงจำนวนรีวิวต่อเมนู
+            const reviewValues = data.map(item => item.reviews); // Data corresponding to originalOrderMenuNames
+
+            new Chart(document.getElementById('reviewChart'), {
+                type: 'bar',
+                data: {
+                    labels: originalOrderMenuNames, // Use original order menu names
+                    datasets: [{
+                        label: 'จำนวนรีวิว',
+                        data: reviewValues,
+                        backgroundColor: function(context) {
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) {
+                                return reviewGradientColors.light; // Fallback
+                            }
+                            const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                            gradient.addColorStop(0, reviewGradientColors.dark); // Dark at the base
+                            gradient.addColorStop(1, reviewGradientColors.light); // Light at the top
+                            return gradient;
+                        }
+                    }]
+                },
+                options: {
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'จำนวนรีวิวต่อเมนู'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // 4. แสดงการเปรียบเทียบราคาของสินค้า
+            // สมมติว่า data.json มี field 'price'
+            const priceValues = data.map(item => item.price || 0); // Data corresponding to originalOrderMenuNames
+
+            new Chart(document.getElementById('priceChart'), {
+                type: 'bar',
+                data: {
+                    labels: originalOrderMenuNames, // Use original order menu names
+                    datasets: [{
+                        label: 'ราคา (บาท)',
+                        data: priceValues,
+                        backgroundColor: function(context) {
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) {
+                                return priceGradientColors.light; // Fallback
+                            }
+                            const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                            gradient.addColorStop(0, priceGradientColors.dark); // Dark at the base
+                            gradient.addColorStop(1, priceGradientColors.light); // Light at the top
+                            return gradient;
+                        }
+                    }]
+                },
+                options: {
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'การเปรียบเทียบราคาของสินค้า (บาท)'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + ' บาท';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
